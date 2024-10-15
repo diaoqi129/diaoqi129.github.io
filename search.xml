@@ -17,45 +17,6 @@
     
     
     <entry>
-      <title></title>
-      <link href="/2024/08/26/test/"/>
-      <url>/2024/08/26/test/</url>
-      
-        <content type="html"><![CDATA[<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">int</span> gcd(a,b)</span><br><span class="line">    <span class="keyword">if</span> a == b</span><br><span class="line">       <span class="keyword">return</span> a</span><br><span class="line">    <span class="keyword">if</span> a &lt; b</span><br><span class="line">       <span class="keyword">return</span> gcd(b - a, a)</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">       <span class="keyword">return</span> gcd(a - b, b)</span><br></pre></td></tr></table></figure>]]></content>
-      
-      
-      
-    </entry>
-    
-    
-    
-    <entry>
-      <title></title>
-      <link href="/2024/07/31/test/"/>
-      <url>/2024/07/31/test/</url>
-      
-        <content type="html"><![CDATA[let foo = {bar : 1};console.log(foo.bar);foo.__proto__.bar = 2;let zoo = {};console.log(zoo.bar);]]></content>
-      
-      
-      
-    </entry>
-    
-    
-    
-    <entry>
-      <title></title>
-      <link href="/2024/07/30/JS%E5%8E%9F%E5%9E%8B%E9%93%BE%E6%B1%A1%E6%9F%93/"/>
-      <url>/2024/07/30/JS%E5%8E%9F%E5%9E%8B%E9%93%BE%E6%B1%A1%E6%9F%93/</url>
-      
-        <content type="html"><![CDATA[<h1 id="js原型链污染"><a href="#js原型链污染" class="headerlink" title="js原型链污染"></a>js原型链污染</h1><h2 id="什么是js原型-prototype"><a href="#什么是js原型-prototype" class="headerlink" title="什么是js原型(prototype)"></a>什么是js原型(prototype)</h2><p>要弄清这个问题，就要先弄清什么事类和对象。<br>类和对象是面向对象的编程语言中的几本概念。这里不进行详细阐述，简单的说，类可以实例化成为对象。二者内部都存在属性和方法。</p><p>现在来说原型。原型分为显式原型(prototype)和隐式原型(_<em>proto_</em>)。现在假定有一个类Foo和一个Foo类实例化得出的对象foo。我们可以通过</p><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="title class_">Foo</span>.<span class="property"><span class="keyword">prototype</span></span>.<span class="property">FunctionName</span> = </span><br></pre></td></tr></table></figure><p>来定义原型。完成了定义后，就可以通过</p><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">foo.<span class="title class_">FunctionName</span>();</span><br></pre></td></tr></table></figure><p>来对定义好的函数来进行调用了。</p><p>而__proto__和prototype的关系为：foo.__proto__ &#x3D;&#x3D; Foo.prototype</p><p>总的来说，prototype是类的一个属性，而由该类实例化得到的对象都会拥有prototype的属性和方法。</p><h2 id="什么是js原型链"><a href="#什么是js原型链" class="headerlink" title="什么是js原型链"></a>什么是js原型链</h2><p><img src="/images/yxl.png" alt="img1"></p><p>这张图中可以看到，通过 __proto__ 可以一直往前找对象的原型，就形成了原型链。</p><p>而js在寻找属性时，如果在当前的对象中找不到，则会去对象的 __proto__ 中寻找。这个寻找机制就是原型继承链。</p><h2 id="原型链污染"><a href="#原型链污染" class="headerlink" title="原型链污染"></a>原型链污染</h2><p>前文中已经提到，我们可以通过对象的 __proto__ 来访问类的原型。那么如果我门修改一个类的对象的 __proto__ ，是否就可以控制该类的其他对象的属性了呢</p><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> foo = &#123;bar : <span class="number">1</span>&#125;;</span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(foo.<span class="property">bar</span>);</span><br><span class="line"><span class="comment">//通过__proto__来修改属性bar的值</span></span><br><span class="line">foo.<span class="property">__proto__</span>.<span class="property">bar</span> = <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> zoo = &#123;&#125;;</span><br><span class="line"><span class="variable language_">console</span>.<span class="title function_">log</span>(zoo.<span class="property">bar</span>);</span><br></pre></td></tr></table></figure><p>运行这段代码可以发现，虽然zoo为一个空属性，但是输出其bar属性会发现结果为2。这就意味着我们通过一个对象来修改原型链，从而影响了其他的对象的属性。这就是js原型链污染的基本原理。</p><h2 id="利用条件"><a href="#利用条件" class="headerlink" title="利用条件"></a>利用条件</h2>]]></content>
-      
-      
-      
-    </entry>
-    
-    
-    
-    <entry>
       <title>一些知识点</title>
       <link href="/2024/07/11/%E4%B8%80%E4%BA%9B%E7%9F%A5%E8%AF%86%E7%82%B9/"/>
       <url>/2024/07/11/%E4%B8%80%E4%BA%9B%E7%9F%A5%E8%AF%86%E7%82%B9/</url>
