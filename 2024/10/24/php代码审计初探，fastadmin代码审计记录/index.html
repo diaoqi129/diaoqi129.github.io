@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>php代码审计初探，fastadmin代码审计记录 | 1ocker的博客</title><meta name="author" content="1ocker"><meta name="copyright" content="1ocker"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Here&#39;s something encrypted, password is required to continue reading.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="php代码审计初探，fastadmin代码审计记录">
+<meta property="og:url" content="http://diaoqi129.github.io/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/index.html">
+<meta property="og:site_name" content="1ocker的博客">
+<meta property="og:description" content="Here&#39;s something encrypted, password is required to continue reading.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://diaoqi129.github.io/img/avatar.png">
+<meta property="article:published_time" content="2024-10-24T06:37:35.000Z">
+<meta property="article:modified_time" content="2024-10-24T06:55:29.803Z">
+<meta property="article:author" content="1ocker">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://diaoqi129.github.io/img/avatar.png"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://diaoqi129.github.io/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.14.0-b3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.35/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>(()=>{
+      const saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+      
+      window.btf = {
+        saveToLocal: saveToLocal,
+        getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = url
+          script.async = true
+          script.onerror = reject
+          script.onload = script.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            script.onload = script.onreadystatechange = null
+            resolve()
+          }
+
+          Object.keys(attr).forEach(key => {
+            script.setAttribute(key, attr[key])
+          })
+
+          document.head.appendChild(script)
+        }),
+
+        getCSS: (url, id = false) => new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = url
+          if (id) link.id = id
+          link.onerror = reject
+          link.onload = link.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            link.onload = link.onreadystatechange = null
+            resolve()
+          }
+          document.head.appendChild(link)
+        }),
+
+        addGlobalFn: (key, fn, name = false, parent = window) => {
+          const pjaxEnable = false
+          if (!pjaxEnable && key.startsWith('pjax')) return
+
+          const globalFn = parent.globalFn || {}
+          const keyObj = globalFn[key] || {}
+    
+          if (name && keyObj[name]) return
+    
+          name = name || Object.keys(keyObj).length
+          keyObj[name] = fn
+          globalFn[key] = keyObj
+          parent.globalFn = globalFn
+        }
+      }
+    
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+      
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })()</script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Error',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'php代码审计初探，fastadmin代码审计记录',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-10-24 14:55:29'
+}</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">6</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><hr class="custom-hr"/></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a href="/" title="1ocker的博客"><span class="site-name">1ocker的博客</span></a></span><div id="menus"><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">php代码审计初探，fastadmin代码审计记录</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2024-10-24T06:37:35.000Z" title="Created 2024-10-24 14:37:35">2024-10-24</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2024-10-24T06:55:29.803Z" title="Updated 2024-10-24 14:55:29">2024-10-24</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="php代码审计初探，fastadmin代码审计记录"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><div class="hbe hbe-container" id="hexo-blog-encrypt" data-wpm="Oh, this is an invalid password. Check and try again, please." data-whm="OOPS, these decrypted content may changed, but you can still have a look.">
+  <script id="hbeData" type="hbeData" data-hmacdigest="3ac61bc65c9b987a2185f475c3d428729b1b0f30af7dceed9faf462466cf4445">612c4be5af9d151fcef04674f16b7b1198a220535dec485ecb4a46c76ef283134b787e4d633a14fa3a86bcb4042e22650a3f6ef5848a81d084488b027fa723c8ee052c73360da8806b5c1eab58a2d3dbe0c156eebebc0a9da7e863f117a734fc642315a990bb0cd71bccaf781458e529295b0d5718b55aad779c9c54cb0017c157242c7e987de9a1aca3006fb1f90dafb6e9678c297218f6d79978e50dbb07e28f637f9dfcb5db738b427d7ca22c14d7f3b4c5b633ffd3a94ebe40fa5af7fa8f3ce94efa02eb649ed0017984d2cdc6a5a054bfaf0a48f25edfa22b8dc6223667133d5cb2eca4f70843077d806f4da457c801393f339cb76e1115998cde6658749c8c03ee96010fc9c5a4f37b76a9a2c754ae109b906ca803c62bf54fd7bed17a0c1f1e66d1171ab88522536540b40fa907dac2a61b450c2165215e88db1f490578c984054c029b672f3f08aba5b898df61df3ae47b3984e63cf9a866f2e822a02268e768378444e9a58faad26434ab647a70f6b02257646c671cf42bf85463346373c1218f03de22779f2322f4b9a538acf8e9a86d498ec186ae785028a6e04c7d29bf118e7a188588be406515e74955a1a5e088dd011c522332ec089680d1488f41f3f7f2b06f5be1d077322980a6a1295d572aa3e357af6d2cfcc962ff4aaf47465d00e8fe59b38df5507445ebcd5e225aa5797679ee554788cca4f3723c7d14f185ca7a7ac1e44ab6a2dc07d79763d6e3ba241173ec67f3f547f1f2af003ca570d0c3e025ed3c6da007af2ca36474c66d355ae1d10199bbea69136cb29e4a13353cec070b3092b62ae040ff5745476b3e2c98dc4dc285fef2289d2ea2297fe4c4a6bf69dfa07fabb301725c18375cddb6e7301da00096d2581c83f2181dde307be66f49a79b60ed3f6e6fd00385ae52e5112e669c23a6114ceea54b4e0d35e870e21ddd870a23f627c125ac04d611080267d694df7b6829855eb5180b47a0f4c65cf57b4f0238f518b5e58d3858122dbd8769fd84715dcb22b33e7027a2c5f694b7739c1216aa002eacb1f88b4f477b8cf3d3cf5fd8c675902af0b08999b1d8f755798305ae70d54d2a92c706d8a969bc77732e5cc504e4c22f2200861cff26c2a6da217364821220a985f76c204804060fcf441fe698999e24fee5b242aee86b4eafb82af4ab1ab41dffddbb56c0ee0ab983329374ab96d8d25a1b203830613a729261db4b73b9f2323d2502e59808a475a656c773fcde3e904245dc3f0f10c33b4de8699a8ce2533dd12b19138d0c489585aa77fd6708166bfd4ead92fde7323b77cf8e2aa0e5ee3d43e083f1c1e2d3fa7b8d29e9e7fc3650f2b4a0d5e53f0ed3dd2c13805f1078fc17eaa62868bbee27ea90977d36e46ed4ad029d71e6ca66fe0f05099909d3c7e55f06cf026dc409dd78780a149fdcc29dfe3817f24f24c6cbd478414adfc666a7359efbbf7129895552b31329e7852bd7826c10dfdd470e08df922c3829166a17cfade22870e2308fd676b7432a6434f93d8d22f5ee53cd3134e60d0aae1c792f9738adfb592d832205007fba703abecee8d58ccb5648e7027874b29eb6c0205dfe4cc837262d59cc56b3e9b1bd746d547739e1ed42160fb8a131bd13090dacf11b2a21c19f7fe111b67d1a0031e04ebc236c13c434102d4d5ed72f1f21ea2145977a1a437dee062365c77e9ccde25768b8716421f2d37b2b7f40693d66beb6b719b79941d42a8082643c3d1e7d12d75fcd466f55a6166a8412152103e7e88d091c9693d943707a4244eb0d3a85b3de4ae2b5c9bf0461ea54e62e0033391b22b59b90d4b02d627902caf8d16564a6651f0a7a6e75123c803607d9da76418c882091302ab4986281eaf49b30c0b78e2c483b7f72b5c2ef0251cf0129c68a4c14e3c148bf27137098108bf6813346a315cb8b9b3654d9c126a23adbfbe5a4f5b2b643de08aa978df4550393e4698865d9115e0f4f20ccd05ec4b61b1830df30ec004e0ab259ae0cfd860152ecf2ce1276f249b90364db</script>
+  <div class="hbe hbe-content">
+    <div class="hbe hbe-input hbe-input-default">
+      <input class="hbe hbe-input-field hbe-input-field-default" type="password" id="hbePass">
+      <label class="hbe hbe-input-label hbe-input-label-default" for="hbePass">
+        <span class="hbe hbe-input-label-content hbe-input-label-content-default">Hey, password is required here.</span>
+      </label>
+    </div>
+  </div>
+</div>
+<script data-pjax src="/lib/hbe.js"></script><link href="/css/hbe.style.css" rel="stylesheet" type="text/css"></article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://diaoqi129.github.io">1ocker</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://diaoqi129.github.io/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/">http://diaoqi129.github.io/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"></div><div class="post_share"><div class="social-share" data-image="/img/avatar.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2024/10/16/JSC/" title="JSC"><div class="cover" style="background: var(--default-bg-color)"></div><div class="pagination-info"><div class="label">Next</div><div class="next_info">JSC</div></div></a></div></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">1ocker</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">6</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">web菜鸟不定期更新</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content toc-div-class" style="display:none"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">php代码审计初探，fastadmin代码审计记录</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C%E5%87%BD%E6%95%B0"><span class="toc-number">1.1.</span> <span class="toc-text">命令执行函数</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#exec"><span class="toc-number">1.1.1.</span> <span class="toc-text">exec</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#call-user-func"><span class="toc-number">1.1.2.</span> <span class="toc-text">call_user_func</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#SSRF"><span class="toc-number">1.2.</span> <span class="toc-text">SSRF</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#file-get-contents"><span class="toc-number">1.2.1.</span> <span class="toc-text">file_get_contents</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#curl"><span class="toc-number">1.2.2.</span> <span class="toc-text">curl</span></a></li></ol></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Post</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/" title="php代码审计初探，fastadmin代码审计记录">php代码审计初探，fastadmin代码审计记录</a><time datetime="2024-10-24T06:37:35.000Z" title="Created 2024-10-24 14:37:35">2024-10-24</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/16/JSC/" title="JSC">JSC</a><time datetime="2024-10-16T13:33:56.000Z" title="Created 2024-10-16 21:33:56">2024-10-16</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/12/JS%E5%8E%9F%E5%9E%8B%E9%93%BE%E6%B1%A1%E6%9F%93-1/" title="JS原型链污染">JS原型链污染</a><time datetime="2024-10-12T11:46:46.000Z" title="Created 2024-10-12 19:46:46">2024-10-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/11/%E4%B8%80%E4%BA%9B%E7%9F%A5%E8%AF%86%E7%82%B9/" title="一些知识点">一些知识点</a><time datetime="2024-07-11T07:01:03.000Z" title="Created 2024-07-11 15:01:03">2024-07-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/02/2024-ciscn-%E5%8D%8E%E5%8C%97%E8%B5%9B%E5%8C%BA%E5%88%9D%E8%B5%9B%E8%AF%95%E9%A2%98%E5%A4%8D%E7%8E%B0/" title="2024 ciscn 华北赛区初赛试题复现">2024 ciscn 华北赛区初赛试题复现</a><time datetime="2024-07-02T13:37:33.000Z" title="Created 2024-07-02 21:37:33">2024-07-02</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2024 By 1ocker</div><div class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Read Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light And Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Setting"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table Of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back To Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.14.0-b3"></script><script src="/js/main.js?v=4.14.0-b3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.35/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = (ele) => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    Array.from(ele).forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
+      const mermaidID = 'mermaid-' + index
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+
+      const renderV10 = () => {
+        renderFn.then(({svg}) => {
+          mermaidSrc.insertAdjacentHTML('afterend', svg)
+        })
+      }
+
+      const renderV9 = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+    
+    codeMermaidEle.forEach(ele => {
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.innerHTML = `<pre class="mermaid-src" hidden>${ele.textContent}</pre>`
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (false) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+  
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
